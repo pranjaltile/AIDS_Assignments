@@ -1,66 +1,53 @@
+# Step 1: Import all the required Python libraries
 import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
 
-# Load the dataset
-df = pd.read_csv('/home/pl2/Downloads/iris.csv')
+# Step 2: Locate open-source data from the web
+# For simplicity, we use the built-in Iris dataset from seaborn.
+# Description: The Iris dataset contains measurements for 150 iris flowers from three different species.
+# URL: https://www.kaggle.com/datasets/uciml/iris
 
-# Function to find outliers using IQR
-def find_outliers_IQR(df):
-    q1 = df.quantile(0.25)
-    q3 = df.quantile(0.75)
-    IQR = q3 - q1
-    
-    # Create a boolean mask for outliers
-    outliers_mask = (df < (q1 - 1.5 * IQR)) | (df > (q3 + 1.5 * IQR))
-    
-    # Return DataFrame with outliers
-    outliers = df[outliers_mask]
-    return outliers
+# Step 3: Load the dataset into a pandas DataFrame
+df = sns.load_dataset("iris")
 
-# Function to drop outliers using IQR
-def drop_outliers_IQR(df):
-    q1 = df.quantile(0.25)
-    q3 = df.quantile(0.75)
-    IQR = q3 - q1
-    
-    # Create a mask for non-outliers
-    not_outliers_mask = ~((df < (q1 - 1.5 * IQR)) | (df > (q3 + 1.5 * IQR)))
-    
-    # Filter the DataFrame to keep only non-outliers
-    not_outliers = df[not_outliers_mask].reset_index(drop=True)
-    return not_outliers
+# Step 4: Display the initial statistics
+print("Initial Statistics:")
+print(df.describe(include='all'))
+print("\nFirst few rows of the dataset:\n", df.head())
 
-# Function to cap outliers
-def cap_outliers_IQR(df):
-    q1 = df.quantile(0.25)
-    q3 = df.quantile(0.75)
-    IQR = q3 - q1
-    
-    # Define cap values
-    lower_cap = q1 - 1.5 * IQR
-    upper_cap = q3 + 1.5 * IQR
-    
-    # Cap the outliers
-    df_capped = df.copy()
-    df_capped[df < lower_cap] = lower_cap
-    df_capped[df > upper_cap] = upper_cap
-    
-    return df_capped
+# Step 5: Scan all variables for missing values and inconsistencies
+print("\nMissing values in each column:\n", df.isnull().sum())
+# As the Iris dataset has no missing values, if there were any, we could fill them like this:
+# df.fillna(df.mean(), inplace=True)  # for numeric columns
 
-# Check for missing values
-print("Missing values in each column:\n", df.isnull().sum())
+# Step 6: Scan all numeric variables for outliers
+# We use boxplot to visualize potential outliers in the numeric variables
+numeric_columns = df.select_dtypes(include=[np.number]).columns
+for col in numeric_columns:
+    plt.figure()
+    sns.boxplot(x=df[col])
+    plt.title(f"Boxplot of {col}")
 
-# Find outliers
-outliers = find_outliers_IQR(df)
-print("Number of outliers:\n", len(outliers))
-print("Max outlier value:\n", outliers.max())
-print("Min outlier value:\n", outliers.min())
-print("Outliers:\n", outliers)
+# Remove outliers using the IQR method
+for col in numeric_columns:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    df = df[(df[col] >= lower_bound) & (df[col] <= upper_bound)]
 
-# Drop outliers
-df_cleaned = drop_outliers_IQR(df)
-print("DataFrame after dropping outliers:\n", df_cleaned)
+# Step 7: Apply data transformations on at least one of the variables
+# Here we normalize the 'sepal_length' column as an example
+scaler = StandardScaler()
+df['sepal_length_scaled'] = scaler.fit_transform(df[['sepal_length']])
 
-# Cap outliers
-df_capped = cap_outliers_IQR(df)
-print("DataFrame after capping outliers:\n", df_capped)
+# Step 8: Turn categorical variables into quantitative variables
+# Convert 'species' column into numerical format using label encoding
+df['species_encoded'] = df['species'].astype('category').cat.codes
 
+print("\nData after transformations and encoding:")
+print(df.head())
